@@ -5,8 +5,12 @@ import {
   Application,
   Assets,
   BaseTexture,
+  BatchRenderer,
+  BatchShaderGenerator,
+  Container,
   SCALE_MODES,
   Sprite,
+  Spritesheet,
   Texture,
 } from "pixijs";
 import { useEffect, useRef, useState } from "react";
@@ -53,12 +57,36 @@ const getSpriteURL = (terrainImage: string) => {
   return `${spriteFolder}/${terrainImage}`;
 };
 
+
+const PaletteShader = new BatchShaderGenerator(undefined,
+`
+varying vec2 vTextureCoord;
+varying vec4 vColor;
+varying float vTextureId;
+uniform sampler2D uSamplers[%count%];
+
+void main(void){
+    vec4 color;
+    %forloop%
+	vec2 uv = vec2(color.r, vColor.r);
+    gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+}
+`);
+
+class PaletteBatchRenderer extends BatchRenderer {
+  constructor(renderer) {
+    super(renderer);
+    this.shaderGen = PaletteShader;
+  }
+}
+
 export const PixiMatch = () => {
+
   const { currentPlayer } = usePlayers();
   const [players, setPlayers] = useState<PlayerInMatch[] | null | undefined>(
     null
   );
-  const [segments] = useState<Tile[][] | null | undefined>(null);
+  const [segments, setSegments] = useState<Tile[][] | null | undefined>(null);
   const pixiCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const { query } = useRouter();
@@ -80,7 +108,7 @@ export const PixiMatch = () => {
         }
 
         if (!segments) {
-          // setSegments(data.map.tiles);
+          setSegments(data.map.tiles);
         }
       },
     }
@@ -95,27 +123,36 @@ export const PixiMatch = () => {
       view: pixiCanvasRef.current,
       resolution: 2,
     });
-
+	
     pixiApp.stage.position.set(200, 0);
+	
 
     (async () => {
-      for (const indexStringY in segments) {
+      const spritesheet = await Assets.load('/img/spritesheet.json');
+		  await spritesheet.parse();
+	  for (const indexStringY in segments) {
         for (const indexStringX in segments) {
           const seg = segments[indexStringY][indexStringX];
           const indexX = Number.parseInt(indexStringX, 10);
           const indexY = Number.parseInt(indexStringY, 10);
 
-          const texture = await Assets.load<Texture>(
-            `/img/mapTiles/${getSpriteURL(seg.type)}.webp`
-          );
-
-          const forestSprite = Sprite.from(texture);
-
-          forestSprite.x = indexX * 16;
-          forestSprite.y = indexY * 16 - (forestSprite.height - 16);
-          pixiApp.stage.addChild(forestSprite);
+          let texture = spritesheet.textures[`map/aw2/${getSpriteURL(seg.type)}`];
+		  if (texture !== undefined)
+		  {
+			const forestSprite = Sprite.from(texture);
+	
+			forestSprite.x = indexX * 16;
+			forestSprite.y = indexY * 16 - (texture.height - 16);
+			pixiApp.stage.addChild(forestSprite);
+		  }
         }
       }
+	  
+      const copter_Sprite = Sprite.from(spritesheet.textures["units/orangestar/t-copter-0"]);
+      copter_Sprite.x = 200;
+      copter_Sprite.y = 10;
+      pixiApp.stage.addChild(copter_Sprite);
+		  
     })();
 
     return () => {

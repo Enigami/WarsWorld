@@ -41,20 +41,30 @@ const numberMapping: Record<string, string> = {
   5: "comtower",
 };
 
-const getSpriteURL = (terrainImage: string) => {
-  const tileCode = terrainImage.slice(0, 2);
+const getSpriteURL = (terrainImage: string, terrainVariant: string, terrainPlayerSlot: number) => {
+  //const tileCode = terrainImage.slice(0, 2);
+  //
+  //if (["os", "bm", "ne"].includes(tileCode)) {
+  //  return `countries/${numberMapping[terrainImage.slice(2)]}/${terrainImage}`;
+  //}
 
-  if (["os", "bm", "ne"].includes(tileCode)) {
-    return `countries/${numberMapping[terrainImage.slice(2)]}/${terrainImage}`;
+  //const spriteFolder = spriteURLMap[tileCode];
+  
+  let return_value = terrainImage;
+  if (terrainPlayerSlot !== undefined && terrainPlayerSlot >= 0) {
+    return_value = return_value.concat(terrainPlayerSlot.toString());
   }
-
-  const spriteFolder = spriteURLMap[tileCode];
-
-  if (spriteFolder === undefined) {
-    return terrainImage;
+  
+  if (terrainVariant !== undefined) {
+    return_value = return_value.concat(`-${terrainVariant}`);
   }
+  
+  return return_value;
+  //if (spriteFolder === undefined) {
+  //  return terrainImage;
+  //}
 
-  return `${spriteFolder}/${terrainImage}`;
+  //return `${spriteFolder}/${terrainImage}`;
 };
 
 
@@ -128,6 +138,7 @@ export const PixiMatch = () => {
 	
 
     (async () => {
+		let temp = 0;
       const spritesheet = await Assets.load('/img/spritesheet.json');
 		  await spritesheet.parse();
 	  for (const indexStringY in segments) {
@@ -136,14 +147,20 @@ export const PixiMatch = () => {
           const indexX = Number.parseInt(indexStringX, 10);
           const indexY = Number.parseInt(indexStringY, 10);
 
-          let texture = spritesheet.textures[`map/aw2/${getSpriteURL(seg.type)}`];
-		  if (texture !== undefined)
-		  {
+          let texture = spritesheet.textures[`map/aw2/${getSpriteURL(seg.type, seg.variant, seg.playerSlot)}`];
+		  if (texture === undefined) {
+            texture = spritesheet.textures[`map/aw2/${seg.type}/${getSpriteURL(seg.type, seg.variant, seg.playerSlot)}`];
+		  }
+		  if (texture !== undefined) {
 			const forestSprite = Sprite.from(texture);
-	
 			forestSprite.x = indexX * 16;
 			forestSprite.y = indexY * 16 - (texture.height - 16);
 			pixiApp.stage.addChild(forestSprite);
+		  }
+		  else if (temp < 2)
+		  {
+			temp = temp + 1;
+			alert(`map/aw2/${seg.type}/${getSpriteURL(seg.type, seg.variant, seg.playerSlot)}`);
 		  }
         }
       }
